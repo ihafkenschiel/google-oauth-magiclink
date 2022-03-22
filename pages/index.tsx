@@ -1,9 +1,12 @@
 import type { NextPage } from "next";
 import Head from "next/head";
-import { Magic } from "magic-sdk";
+import { useState } from "react";
+import { Magic, MagicSDKExtensionsOption } from "magic-sdk";
 import { OAuthExtension } from "@magic-ext/oauth";
 // Local
 import styles from "../styles/Home.module.css";
+import { useEffect } from "react";
+import { InstanceWithExtensions, SDKBase } from "@magic-sdk/provider";
 
 interface iHome {
   apiKey: string;
@@ -11,12 +14,29 @@ interface iHome {
 }
 
 const Home: NextPage<iHome> = ({ apiKey, redirectURI }) => {
-  const handleLogin = async () => {
-    const magic = new Magic(apiKey, {
-      extensions: [new OAuthExtension()],
-    });
+  let magic: InstanceWithExtensions<SDKBase, OAuthExtension[]> | null = null;
 
-    await magic.oauth.loginWithRedirect({
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!magic) {
+      magic = new Magic(apiKey, {
+        extensions: [new OAuthExtension()],
+      });
+    }
+  }, [magic]);
+
+  useEffect(() => {
+    async function handleLogin() {
+      const result = await magic.oauth.getRedirectResult();
+      console.log("result :>> ", result);
+    }
+    if (magic && isLoading) handleLogin();
+  }, [isLoading, magic]);
+
+  const handleLogin = async () => {
+    setIsLoading(true);
+    await magic?.oauth.loginWithRedirect({
       provider: "google",
       redirectURI: redirectURI,
       scope: ["user:email"] /* optional */,
@@ -31,9 +51,13 @@ const Home: NextPage<iHome> = ({ apiKey, redirectURI }) => {
       </Head>
 
       <main className={styles.main}>
-        <h2 className={styles.title}>Magic Oauth Prototype</h2>
+        <h3 className={styles.title}>Magic Oauth Prototype</h3>
         <br />
-        <button onClick={() => handleLogin()}>Sign in with Google</button>
+        {isLoading ? (
+          "Loading..."
+        ) : (
+          <button onClick={() => handleLogin()}>Sign in with Google</button>
+        )}
       </main>
 
       <footer className={styles.footer}>AE Studio 2022</footer>
